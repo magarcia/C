@@ -115,6 +115,13 @@ def sign(private_key, message):
     return signature
 
 
+def generate_key(size=16):
+    from Crypto import Random
+    random_generator = Random.new().read
+
+    return random_generator(size)
+
+
 def sign_file(args):
     from ecdsa import SigningKey
 
@@ -127,7 +134,41 @@ def sign_file(args):
 
 
 def send_message(args):
-    print "Not implemented yet"
+    from ecdsa import SigningKey
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+
+    backend = default_backend()
+    key_size = 2048
+
+    message = args.message.read()
+
+    public_key = serialization.load_pem_public_key(
+        args.publicKey.read(),
+        backend=backend
+    )
+
+    key = generate_key()
+
+    key_enc = public_key.encrypt(
+        key,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA1()),
+            algorithm=hashes.SHA1(),
+            label=None
+        )
+    )
+
+    signatureKey = SigningKey.from_pem(args.signatureKey.read())
+    signature = sign(signatureKey, message)
+
+    iv, encrypted = encrypt(key, message + signature)
+
+
+    with open('output.enc', 'wb') as output:
+        output.write(key_enc + iv + encrypted)
 
 
 def receive_message(args):
@@ -251,10 +292,10 @@ if __name__ == "__main__":
     send.add_argument('publicKey',
                       type=argparse.FileType('rb'),
                       help='file containing the public key of the receiver of the message')
-    send.add_argument('privateKey',
-                      type=argparse.FileType('rb'),
-                      help='file containing the private key to generate the session key')
-    receive.set_defaults(func=send_message)
+    # send.add_argument('privateKey',
+    #                   type=argparse.FileType('rb'),
+    #                   help='file containing the private key to generate the session key')
+    send.set_defaults(func=send_message)
 
     # Receive options
     receive = subparsers.add_parser('receive', description='Receive encrypted message')
