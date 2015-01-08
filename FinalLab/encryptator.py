@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+
 def generate_RSA_key(args):
     '''
     Generate an RSA keypair PEM format
@@ -10,10 +12,10 @@ def generate_RSA_key(args):
     public_key = new_key.publickey().exportKey("PEM")
     private_key = new_key.exportKey("PEM")
 
-    with open('private_key.pem', 'wb') as key_file:
+    with open('privateRSA.pem', 'wb') as key_file:
         key_file.write(private_key)
 
-    with open('public_key.pem', 'wb') as key_file:
+    with open('publicRSA.pem', 'wb') as key_file:
         key_file.write(public_key)
 
 
@@ -27,10 +29,10 @@ def generate_ECC_key(args):
     private_key = SigningKey.generate(curve=curve)
     public_key = private_key.get_verifying_key()
 
-    with open('private_key.pem', 'wb') as key_file:
+    with open('privateEC.pem', 'wb') as key_file:
         key_file.write(private_key.to_pem())
 
-    with open('public_key.pem', 'wb') as key_file:
+    with open('publicEC.pem', 'wb') as key_file:
         key_file.write(public_key.to_pem())
 
 
@@ -72,7 +74,11 @@ def decrypt_file(args):
     iv = args.file.read(16)
     ciphertext = args.file.read()
     key = args.key.read()
-    with open('output.plain', 'wb') as output:
+
+    name, extension = os.path.splitext(args.file.name)
+    name = os.path.basename(name)
+
+    with open(name, 'wb') as output:
         plain = decrypt(key, iv, ciphertext)
         output.write(plain)
 
@@ -80,7 +86,10 @@ def decrypt_file(args):
 def encrypt_file(args):
     plain = args.file.read()
     key = args.key.read()
-    with open('output.enc', 'wb') as output:
+
+    name = os.path.basename(args.file.name)
+
+    with open('%s.enc' % name, 'wb') as output:
         iv, ciphertext = encrypt(key, plain)
         output.write(iv + ciphertext)
 
@@ -128,8 +137,10 @@ def sign_file(args):
     private_key = SigningKey.from_pem(args.signatureKey.read())
     message = args.file.read()
 
+    name = os.path.basename(args.file.name)
+
     signature = sign(private_key, message)
-    with open('signature.sig', 'wb') as sign_file:
+    with open('%s.sig' % name, 'wb') as sign_file:
         sign_file.write(signature)
 
 
@@ -166,8 +177,9 @@ def send_message(args):
 
     iv, encrypted = encrypt(key, message + signature)
 
+    name = os.path.basename(args.message.name)
 
-    with open('output.enc', 'wb') as output:
+    with open('%s.enc' % name, 'wb') as output:
         output.write(key_enc + iv + encrypted)
 
 
@@ -207,10 +219,14 @@ def receive_message(args):
     signature = plain[len(plain)-64:]
     plain = plain[:len(plain)-64]
 
-    with open('output.plain', 'wb') as plain_file:
+    name, extension = os.path.splitext(args.message.name)
+
+    name = os.path.basename(name)
+
+    with open(name, 'wb') as plain_file:
         plain_file.write(plain)
 
-    with open('output.sig', 'wb') as sig_file:
+    with open('%s.sig' % name, 'wb') as sig_file:
         sig_file.write(signature)
 
     public_key = VerifyingKey.from_pem(args.verificaitonKey.read())
